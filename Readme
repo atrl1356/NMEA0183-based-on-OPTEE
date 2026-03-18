@@ -1,0 +1,9 @@
+在CA界面依序執行這三條指令
+replay.py是讀log檔且建立連線的腳本
+optee_nmea是專案的資料夾名稱 資料夾放在optee目錄底下
+hostshare是放python腳本和log檔的資料夾 一樣放在optee目錄底下
+
+mkdir -p /mnt/host
+mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/host
+
+python3 /mnt/host/replay.py /mnt/host/drone_data.log & optee_nmea --udp 10110 --bind 127.0.0.1
