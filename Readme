@@ -4,7 +4,7 @@ receiver.py是解密用的檔案
 optee_station是專案的資料夾名稱 資料夾放在optee目錄底下（我這邊改了一下名）
 hostshare是放python腳本和log檔的資料夾 一樣放在optee目錄底下
 
-下面這幾行是為了讓secure storage裡的資料不會刷新 把資料綁到hostshare下的資料夾（tee_storage）中 這樣每次QEMU重啟master key跟seq才不會刷新 只有虛擬機重啟才會刷新
+下面這幾行是為了讓secure storage裡的資料不會刷新 在CA中輸入 把資料綁到hostshare下的資料夾（tee_storage）中 這樣每次QEMU重啟master key跟seq才不會刷新 只有虛擬機重啟才會刷新
 mkdir -p /mnt/host
 mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/host
 mkdir -p /mnt/host/tee_storage
