@@ -1,0 +1,24 @@
+在CA界面依序執行這三條指令
+replay.py是讀log檔且建立連線的腳本
+receiver.py是解密用的檔案
+optee_station是專案的資料夾名稱 資料夾放在optee目錄底下（我這邊改了一下名）
+hostshare是放python腳本和log檔的資料夾 一樣放在optee目錄底下
+
+下面這幾行是為了讓secure storage裡的資料不會刷新 把資料綁到hostshare下的資料夾（tee_storage）中 這樣每次QEMU重啟master key跟seq才不會刷新 只有虛擬機重啟才會刷新
+mkdir -p /mnt/host
+mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/host
+mkdir -p /mnt/host/tee_storage
+mount --bind /mnt/host/tee_storage /var/lib/tee
+ps | grep tee-supplicant 
+（輸完看它跑出來 tee      /usr/sbin/tee-supplicant -d /dev/teepriv0 這行前面的編號是多少）
+
+kill 103（這裡kill掉的就是上面跑出來的編號）
+tee-supplicant -d /dev/teepriv0 &
+
+這是解密的檔案 直接在本機hostshare目錄下開終端輸入
+python3 receiver.py --listen-port 20000 --master-key-hex df92232c06a62eabf8bd47bdd7c42063d4331bb52e8efeca6c6c98b456e4299d（這裡放你那邊生成的master key）
+
+下面這兩個都是測試用指令 在CA輸入 可以先用其中一個跑一次看master key後再執行上面那行
+python3 /mnt/host/replay.py /mnt/host/drone_data.log & optee_station --src-port 10110 --bind 127.0.0.1 --dst-ip 10.0.2.2 --dst-port 20000
+python3 /mnt/host/replay.py /mnt/host/test.log & optee_station --src-port 10110 --bind 127.0.0.1 --dst-ip 10.0.2.2 --dst-port 20000
+
