@@ -1,9 +1,8 @@
-在CA界面依序執行這三條指令
-replay.py是讀log檔且建立連線的腳本
-optee_nmea是專案的資料夾名稱 資料夾放在optee目錄底下
-hostshare是放python腳本和log檔的資料夾 一樣放在optee目錄底下
+修改main.c
 
-mkdir -p /mnt/host
-mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/host
-
-python3 /mnt/host/replay.py /mnt/host/drone_data.log & optee_nmea --udp 10110 --bind 127.0.0.1
+開啟optee時，生成一張虛擬網卡
+make run-only QEMU_EXTRA_ARGS="-netdev user,id=vmnic,hostfwd=udp::10110-:10110 -device virtio-net-pci,netdev=vmnic"
+進CA輸入ifconfig -a確認虛擬網卡執行(lo是默認，應該會有eth0)
+接著下行啟動網卡
+ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
+理論上，CA可以收到0.0.0.0的封包
