@@ -1,0 +1,23 @@
+在CA界面依序執行這幾條指令
+optee_station是專案的資料夾名稱 資料夾放在optee目錄底下
+hostshare是放python腳本和log檔的資料夾 一樣放在optee目錄底下
+
+下面這幾行是為了讓secure storage裡的資料不會刷新 在CA中輸入 把資料綁到hostshare下的資料夾（tee_storage）中 這樣每次QEMU重啟master key跟seq才不會刷新 只有虛擬機重啟才會刷新
+mkdir -p /mnt/host
+mount -t 9p -o trans=virtio,version=9p2000.L hostshare /mnt/host
+mkdir -p /mnt/host/tee_storage
+mount --bind /mnt/host/tee_storage /var/lib/tee
+ps | grep tee-supplicant 
+（輸完看它跑出來 tee      /usr/sbin/tee-supplicant -d /dev/teepriv0 這行前面的編號是多少）
+
+kill 103（這裡kill掉的就是上面跑出來的編號）
+tee-supplicant -d /dev/teepriv0 &
+
+稍微改了一下加密的流程 現在改成用X25519算法的非對稱式加密 地面站跟無人機各持一對公私鑰 雙方在設定好對方的公鑰後就能算出一樣的共享祕密（一組32bytes的密碼） 這組共享祕密是用一方的私鑰與另一方的公鑰計算出的 地面站用這組共享祕密與各筆數據的seq和nonce去衍生出加密數據用的aes key來加密指令 無人機在收到加密過的指令後用共享祕密和一樣的衍生方法得出aes key解密 
+
+這裡在CA依序執行
+optee_station --print-pubkey	拿地面站公鑰
+optee_drone --print-pubkey	拿無人機公鑰
+optee_station --set-peer-pubkey 83914731287f7e529835409b5df56cf4502a880a02420e9579a87c14dfc38818 （這裡放無人機公鑰）	地面站端設置無人機公鑰
+optee_drone --set-peer-pubkey b4eb238506853042658aafe588d50a79d650cb2311017eb0d3bfe87029c9027b （這裡放地面站公鑰）	無人機端設置地面站公鑰
+optee_drone --listen-ip 0.0.0.0 --listen-port 20000 & sleep 1; optee_station --send-cmd "地面站要傳送的指令" --dst-ip 127.0.0.1 --dst-port 20000
