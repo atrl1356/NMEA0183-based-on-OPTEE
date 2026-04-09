@@ -1,8 +1,49 @@
-修改main.c
+修改main.c為主
 
 開啟optee時，生成一張虛擬網卡
-make run-only QEMU_EXTRA_ARGS="-netdev user,id=vmnic,hostfwd=udp::10110-:10110 -device virtio-net-pci,netdev=vmnic"
+make run-only QEMU_EXTRA_ARGS="-netdev user,id=vmnic,hostfwd=udp::10110-:10110,hostfwd=udp::10000-:10000 -device virtio-net-pci,netdev=vmnic"
 進CA輸入ifconfig -a確認虛擬網卡執行(lo是默認，應該會有eth0)
-接著下行啟動網卡
+接著啟動網卡
 ifconfig eth0 10.0.2.15 netmask 255.255.255.0 up
-理論上，CA可以收到0.0.0.0的封包
+
+更新無人機版本
+cd ~
+git clone https://github.com/ArduPilot/ardupilot.git
+cd ardupilot
+git submodule update --init --recursive
+git checkout Copter-4.4
+載入依賴環境
+Tools/environment_install/install-prereqs-ubuntu.sh -y
+source ~/.profile
+編譯替換舊版本
+./waf configure --board sitl
+./waf copter
+啟動無人機
+~/ardupilot/build/sitl/bin/arducopter -S -I0 --home -35.363261,149.165230,584,353 --model quad --defaults ~/ardupilot/Tools/autotest/default_params/copter.parm
+
+在CA交換雙方金鑰並啟動讓其在背景執行(在按一次enter可以跳回輸入)
+optee_drone --listen-ip 0.0.0.0 --listen-port 10110 --out-ip 10.0.2.2 --out-port 14550 &
+optee_station --proxy-port 10000 --dst-ip 127.0.0.1 --dst-port 10110 &
+
+開啟雙方mavproxy，可以視覺化無人機輸入輸出(兩個新terminal)
+mavproxy.py --master tcp:127.0.0.1:5760 --out udp:127.0.0.1:10000
+mavproxy.py --master udp:127.0.0.1:14550 --out udp:127.0.0.1:14551
+
+開啟地面站(一個新terminal)
+./QGroundControl.AppImage
+打開 QGroundControl > 點擊左上角「Q」圖示 > Application Settings > Comm Links
+點擊 Add，設定如下：
+Name: 隨意
+Type: UDP
+Port: 14551
+接著connect
+回到地面站主畫面，左上角出現ready to fly即成功。
+
+此時可回到mavproxy.py --master tcp:127.0.0.1:5760 --out udp:127.0.0.1:10000的terminal可輸入飛行指令，例如:
+mode guided(切換到遙控)
+arm throttle(解除無人機鎖定)
+takeoff 20(起飛)
+mode circle(畫圓)
+mode land(降落)
+mode rtl(回到原點)
+
